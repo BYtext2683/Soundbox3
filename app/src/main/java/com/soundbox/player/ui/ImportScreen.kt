@@ -55,7 +55,7 @@ fun ImportScreen(app: App, onBack: () -> Unit) {
             reloadKey++
         }
     }
-    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentMultiple()) { result ->
+    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { result ->
         val uris = result ?: emptyList()
         if (uris.isNotEmpty()) {
             app.repository.addFiles(uris)
