@@ -1,0 +1,43 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+
+# Gradle files
+.gradle/
+build/
+app/build/
+capture/
+*/build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log/OS Files
+*.log
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.DS_Store
+captures/
+
+# Keystore (never commit real signing keys without consent)
+# NOTE: keystore/soundbox.p12 是本项目「固定云端编译签名」的一部分，需要随仓库提交，
+#       以便每次 GitHub 编译出的 APK 签名一致、可覆盖安装。请勿把它加入 .gitignore。
+
+# Compose / Kotlin
+.kotlin/

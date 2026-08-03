@@ -1,0 +1,124 @@
+# SoundBox · 本地音乐播放器（安卓）
+
+一个**纯本机、不联网**的安卓音乐播放器。它用安卓系统自带的音视频解码器播放音乐，
+能把手机里的音乐、你导入的文件夹 / 文件整理成「歌手 / 专辑 / 文件夹 / 格式」分类，
+支持自建歌单并自由决定播放顺序，带通知栏控制和耳机线控（拔掉耳机自动暂停）。
+
+**你不需要安装 Android Studio，也不需要任何本地编译环境。** 项目自带一套
+GitHub Actions 云端编译流程：把代码推到 GitHub，GitHub 免费帮你编成 APK，
+下载安装到手机即可。
+
+---
+
+## 一、兼容的音乐格式
+
+SoundBox 走「系统原生解码器」路线（不内置 FFmpeg，包体小、启动快、最稳）。
+只要是安卓系统能解码的格式都会被扫描进来，常见包括：
+
+| 类型 | 扩展名 |
+| --- | --- |
+| MPEG 音频 | `mp3` |
+| AAC / 苹果系 | `m4a` `m4b` `m4r` `mp4` `aac` `3gp` `3gpp` `3ga` |
+| 无损 | `flac` `wav` `wave` `rf64` |
+| Xiph | `ogg` `oga` `opus` |
+| Matroska | `mka`（内嵌音频） `webm` |
+| 语音 / AMR | `amr` `awb` |
+
+> 说明：**MIDI（`.mid` / `.midi`）** 默认未开启（会多约 1 MB）。如需支持，
+> 打开 `app/build.gradle.kts`，把最后一行
+> `// implementation("androidx.media3:media3-exoplayer-midi:1.5.1")` 的注释去掉即可。
+
+---
+
+## 二、GitHub 云端编译（无需本地工具）
+
+### 1. 把项目放到 GitHub
+- 最简单：在 GitHub 上 **New repository**，然后把本目录全部文件 push 上去；
+- 或者把本目录打包，在 GitHub 网页端直接拖拽上传。
+
+> 仓库必须是 **Public**（私有仓库用 Actions 也行，但公开仓库完全免费）。
+> **不要** 把 `keystore/` 目录删掉——它是固定签名，留着才能覆盖升级。
+
+### 2. 开启 Actions
+进仓库 → **Settings → Actions → General**，在
+*Workflow permissions* 里勾选 **Read and write permissions**（打 tag 自动发版需要）。
+
+### 3. 触发编译
+两种方式，任选其一：
+- **自动**：只要 `main` 分支有新的 push，Actions 会自动跑；
+- **手动**：仓库页 **Actions → 编译 SoundBox APK → Run workflow**。
+
+### 4. 下载 APK
+- 进 **Actions → 最近一次运行 → 右侧 Artifacts** 里下载 `SoundBox-release-apk.zip`，
+  解压得到 `app-release.apk`；
+- 或者给提交**打 tag**（`v1.0.0` 这种格式），编译完成后会自动在 **Releases** 里放出 APK。
+
+### 5. 手机安装
+把 `app-release.apk` 传到手机，点击安装。首次安装需在系统弹窗里
+**允许「安装未知来源应用」**。最低支持 **Android 8.0（API 26）**。
+
+### 关于「覆盖升级」
+APK 用仓库里固定的签名密钥（`keystore/soundbox.p12`，密码 `soundbox`）签署。
+因此每次云端编译出的安装包**签名一致**，下次直接安装会覆盖旧版、保留你的歌单与导入，
+无需先卸载。你也可以在 App 内「设置 → 关于」看到签名指纹（SHA-256）核对来源。
+
+---
+
+## 三、App 使用要点
+
+- **导入音乐**：底部「我的」→「导入音乐」。
+  - *导入整个文件夹*：选一个目录，App 会递归扫描里面的音乐（推荐放整张专辑文件夹）；
+  - *选择文件*：一次挑一个或多个文件。
+  - 导入后系统会授予长期访问权限，**重装前无需重新导入**。
+- **分类浏览**：底部「曲库」按 歌手 / 专辑 / 文件夹 / 格式 切换，点进去看歌曲。
+- **歌单与播放顺序**：底部「歌单」→ 右上角 `+` 新建；进歌单后
+  - 用每首歌右侧的 ▲ / ▼ 调整顺序，或「按标题排序」；
+  - 点单首歌的「…」可 播放 / 下一首播放 / 加入队列 / 加入歌单。
+- **播放控制**：通知栏自带播放控制；耳机/蓝牙按键可用；**拔出耳机自动暂停**。
+- **播放顺序**（列表页右上角或播放页）：顺序 → 列表循环 → 单曲循环 → 随机，循环切换。
+- **扫描设置**：「设置」里可决定是否包含铃声/录音、过滤过短片段、改默认排序。
+
+---
+
+## 四、目录结构
+
+```
+SoundBox/
+├── .github/workflows/build.yml   # GitHub 云端编译流程
+├── app/
+│   ├── build.gradle.kts          # 模块配置 + 固定签名
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/com/soundbox/player/
+│       │   ├── App.kt                 # 手写依赖容器
+│       │   ├── MainActivity.kt        # 入口 / 导航 / 权限
+│       │   ├── data/                  # Track、曲库、歌单、分类、偏好
+│       │   ├── playback/              # Media3 后台服务 + 播放控制器
+│       │   └── ui/                    # Compose 界面与组件
+│       └── res/                       # 图标、主题
+├── gradle/wrapper/                # Gradle Wrapper（云端用它在 runner 上编译）
+├── keystore/soundbox.p12          # 固定签名密钥（务必随仓库提交）
+├── tools/gen_keystore.py          # 生成上述密钥的脚本（已生成好，一般不用再跑）
+└── gradle.properties
+```
+
+---
+
+## 五、技术栈
+
+- Kotlin + Jetpack Compose（Material 3）
+- AndroidX Media3（ExoPlayer + MediaSessionService）做后台播放与通知栏
+- 系统原生音频解码，不依赖 FFmpeg
+- 数据持久化用 `SharedPreferences` + JSON 文件（刻意不引入 Room，降低云端编译风险）
+- 编译：Gradle 8.9 + AGP 8.7.3，JDK 17
+
+---
+
+## 六、常见问题
+
+- **编译失败 / 找不到 SDK？** 确认仓库里保留了 `gradle/wrapper/` 与 `keystore/`，
+  且 Actions 工作流未被禁用。
+- **扫描不到某首歌？** 看扩展名是否在上方格式表里；MIDI 需手动开启（见第一节）。
+- **导入的文件夹换位置后失效？** 系统撤销了访问授权，重新在「导入音乐」里导入一次即可。
+- **想自己换签名？** 改 `tools/gen_keystore.py` 后重跑生成新密钥，并把新 `soundbox.p12`
+  提交；旧版需先卸载再装（签名变了不能覆盖）。
