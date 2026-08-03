@@ -9,10 +9,13 @@ import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -41,6 +44,8 @@ class MusicRepository(private val context: Context, private val prefs: Prefs) {
     private val cacheFile = File(context.filesDir, "imported_cache.json")
     private val artDir = File(context.cacheDir, "artwork")
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     @Volatile
     private var index: Map<String, Track> = emptyMap()
 
@@ -50,7 +55,11 @@ class MusicRepository(private val context: Context, private val prefs: Prefs) {
 
     // ------------------------------------------------------------------ 扫描
 
-    suspend fun refresh() = withContext(Dispatchers.IO) {
+    fun refresh() {
+        scope.launch { refreshInternal() }
+    }
+
+    private suspend fun refreshInternal() = withContext(Dispatchers.IO) {
         if (_scanning.value) return@withContext
         _scanning.value = true
         try {
