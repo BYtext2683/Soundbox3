@@ -14,6 +14,7 @@ data class WallpaperConfig(
     val scale: Float = 1f,
     val offsetX: Float = 0f,
     val offsetY: Float = 0f,
+    val opacity: Float = Prefs.DEFAULT_WALLPAPER_OPACITY,
 )
 
 /** 手写的极简依赖容器，不引入 DI 框架，减少云端编译的不确定性。 */
@@ -45,20 +46,36 @@ class App : Application() {
                 scale = prefs.wallpaperScale,
                 offsetX = prefs.wallpaperOffsetX,
                 offsetY = prefs.wallpaperOffsetY,
+                opacity = prefs.wallpaperOpacity,
             )
         )
     }
 
-    fun applyWallpaper(uri: String, scale: Float, offsetX: Float, offsetY: Float) {
+    fun applyWallpaper(
+        uri: String,
+        scale: Float,
+        offsetX: Float,
+        offsetY: Float,
+        opacity: Float = Prefs.DEFAULT_WALLPAPER_OPACITY,
+    ) {
         prefs.wallpaperUri = uri
         prefs.wallpaperScale = scale
         prefs.wallpaperOffsetX = offsetX
         prefs.wallpaperOffsetY = offsetY
-        wallpaperConfig.value = WallpaperConfig(uri, scale, offsetX, offsetY)
+        prefs.wallpaperOpacity = opacity
+        wallpaperConfig.value = WallpaperConfig(uri, scale, offsetX, offsetY, opacity)
+    }
+
+    /** 仅更新背景不透明度，实时生效并持久化。 */
+    fun setWallpaperOpacity(opacity: Float) {
+        val c = wallpaperConfig.value
+        prefs.wallpaperOpacity = opacity
+        wallpaperConfig.value = c.copy(opacity = opacity)
     }
 
     fun clearWallpaper() {
         prefs.wallpaperUri = ""
+        prefs.wallpaperOpacity = Prefs.DEFAULT_WALLPAPER_OPACITY
         wallpaperConfig.value = WallpaperConfig()
     }
 }

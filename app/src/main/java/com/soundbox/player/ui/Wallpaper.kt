@@ -31,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -53,6 +54,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soundbox.player.App
+import com.soundbox.player.data.Prefs
 
 /** 把图像以「覆盖」方式绘制到画布（scale=1 时填满画布，多余部分裁掉），再叠加用户缩放与偏移。 */
 private fun DrawScope.drawWallpaper(
@@ -153,12 +155,13 @@ private fun AnimatedWallpaper(movie: Movie, scale: Float, offset: Offset) {
     }
 }
 
-/** 设置页入口：从相册选择图片/GIF，缩放裁剪后应用为壁纸。 */
+/** 设置页入口：从相册选择图片/GIF，缩放裁剪并调节不透明度后应用为壁纸。 */
 @Composable
 fun WallpaperScreen(app: App, onBack: () -> Unit) {
     val context = LocalContext.current
-    var cropActive by remember { mutableStateOf(app.prefs.wallpaperUri.isNotBlank()) }
     val uriString = app.prefs.wallpaperUri
+    var editing by remember { mutableStateOf(false) }
+    var opacity by remember { mutableStateOf(app.prefs.wallpaperOpacity) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -168,7 +171,7 @@ fun WallpaperScreen(app: App, onBack: () -> Unit) {
                 )
             }
             app.prefs.wallpaperUri = uri.toString()
-            cropActive = true
+            editing = true
         }
     }
 
@@ -178,7 +181,8 @@ fun WallpaperScreen(app: App, onBack: () -> Unit) {
             navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null) } },
         )
 
-        if (!cropActive || uriString.isBlank()) {
+        if (uriString.isBlank()) {
+            // 尚未选择图片：引导选择
             Column(
                 Modifier.fillMaxSize().padding(24.dp),
                 verticalArrangement = Arrangement.Center,
@@ -191,21 +195,57 @@ fun WallpaperScreen(app: App, onBack: () -> Unit) {
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { picker.launch(arrayOf("image/*")) }) { Text("选择图片") }
             }
-        } else {
+        } else if (editing) {
+            // 裁剪 / 缩放编辑模式
             WallpaperCropper(
                 uri = Uri.parse(uriString),
                 initialScale = app.prefs.wallpaperScale,
                 initialOffset = Offset(app.prefs.wallpaperOffsetX, app.prefs.wallpaperOffsetY),
                 onApply = { scale, offset ->
-                    app.applyWallpaper(uriString, scale, offset.x, offset.y)
-                    onBack()
+                    app.applyWallpaper(uriString, scale, offset.x, offset.y, opacity)
+                    editing = false
                 },
-                onCancel = onBack,
+                onCancel = { editing = false },
                 onClear = {
                     app.clearWallpaper()
-                    cropActive = false
+                    opacity = Prefs.DEFAULT_WALLPAPER_OPACITY
+                    editing = false
                 },
             )
+        } else {
+            // 预览 + 不透明度调节（拖动滑块即时作用于全局背景）
+            Column(
+                Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    "拖动滑块调节背景的明显程度。下方按钮可更换图片或重新调整裁剪区域。",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    "背景不透明度：${(opacity * 100).toInt()}%",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Slider(
+                    value = opacity,
+                    onValueChange = {
+                        opacity = it
+                        app.setWallpaperOpacity(it)
+                    },
+                    valueRange = 0f..1f,
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Button(onClick = { picker.launch(arrayOf("image/*")) }) { Text("更换图片") }
+                    Button(onClick = { editing = true }) { Text("调整裁剪") }
+                    TextButton(onClick = {
+                        app.clearWallpaper()
+                        opacity = Prefs.DEFAULT_WALLPAPER_OPACITY
+                    }) { Text("恢复默认") }
+                }
+            }
         }
     }
 }

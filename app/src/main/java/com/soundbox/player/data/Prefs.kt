@@ -78,6 +78,11 @@ class Prefs(context: Context) {
         get() = sp.getFloat(KEY_WALLPAPER_OFFSET_Y, 0f)
         set(value) = sp.edit { putFloat(KEY_WALLPAPER_OFFSET_Y, value) }
 
+    /** 背景不透明度（0 = 完全被蒙版遮住，1 = 壁纸完全清晰）。 */
+    var wallpaperOpacity: Float
+        get() = sp.getFloat(KEY_WALLPAPER_OPACITY, DEFAULT_WALLPAPER_OPACITY)
+        set(value) = sp.edit { putFloat(KEY_WALLPAPER_OPACITY, value) }
+
     private companion object {
         const val KEY_ORDER = "play_order"
         const val KEY_SORT = "sort_mode"
@@ -90,5 +95,7 @@ class Prefs(context: Context) {
         const val KEY_WALLPAPER_SCALE = "wallpaper_scale"
         const val KEY_WALLPAPER_OFFSET_X = "wallpaper_offset_x"
         const val KEY_WALLPAPER_OFFSET_Y = "wallpaper_offset_y"
+        const val KEY_WALLPAPER_OPACITY = "wallpaper_opacity"
+        const val DEFAULT_WALLPAPER_OPACITY = 0.28f
     }
 }

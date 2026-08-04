@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -63,6 +64,7 @@ fun AppRoot(app: App) {
     val nav = rememberNavController()
     val currentRoute = nav.currentBackStackEntryAsState().value?.destination?.route
     val showBar = currentRoute != "player"
+    val wp by app.wallpaperConfig.collectAsStateWithLifecycle()
 
     // 通知栏播放控制需要 POST_NOTIFICATIONS 权限（Android 13+）。非阻塞请求。
     val postNotifLauncher = rememberLauncherForActivityResult(
@@ -86,7 +88,9 @@ fun AppRoot(app: App) {
         WallpaperBackground(app)
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
+            containerColor = MaterialTheme.colorScheme.background.copy(
+                alpha = (1f - wp.opacity).coerceIn(0f, 1f),
+            ),
             bottomBar = { if (showBar) AppBottomBar(nav) },
         ) { inner ->
             NavHost(
