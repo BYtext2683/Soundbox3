@@ -39,6 +39,8 @@ class MusicRepository(
     /** 未附加统计的基础曲目列表（统计由 tracks 流合并后对外）。 */
     private val _base = MutableStateFlow<List<Track>>(emptyList())
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /** 对外曲库：基础列表 + 每首的播放次数 / 累计时长。 */
     val tracks: StateFlow<List<Track>> = combine(_base, statsStore.state) { base, stats ->
         base.map { t ->
@@ -55,8 +57,6 @@ class MusicRepository(
 
     private val cacheFile = File(context.filesDir, "imported_cache.json")
     private val artDir = File(context.cacheDir, "artwork")
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile
     private var index: Map<String, Track> = emptyMap()
