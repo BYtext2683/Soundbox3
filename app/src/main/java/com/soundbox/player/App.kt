@@ -73,7 +73,7 @@ class App : Application() {
         wallpaperConfig.value = c.copy(opacity = opacity)
     }
 
-    fun clearWallpaper() {
+    fun resetWallpaper() {
         prefs.wallpaperUri = ""
         prefs.wallpaperOpacity = Prefs.DEFAULT_WALLPAPER_OPACITY
         wallpaperConfig.value = WallpaperConfig()

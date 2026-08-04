@@ -207,7 +207,7 @@ fun WallpaperScreen(app: App, onBack: () -> Unit) {
                 },
                 onCancel = { editing = false },
                 onClear = {
-                    app.clearWallpaper()
+                    app.resetWallpaper()
                     opacity = Prefs.DEFAULT_WALLPAPER_OPACITY
                     editing = false
                 },
@@ -241,7 +241,7 @@ fun WallpaperScreen(app: App, onBack: () -> Unit) {
                     Button(onClick = { picker.launch(arrayOf("image/*")) }) { Text("更换图片") }
                     Button(onClick = { editing = true }) { Text("调整裁剪") }
                     TextButton(onClick = {
-                        app.clearWallpaper()
+                        app.resetWallpaper()
                         opacity = Prefs.DEFAULT_WALLPAPER_OPACITY
                     }) { Text("恢复默认") }
                 }
