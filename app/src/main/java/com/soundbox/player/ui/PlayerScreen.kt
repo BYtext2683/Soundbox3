@@ -56,7 +56,10 @@ import com.soundbox.player.ui.components.ArtworkImage
 @Composable
 fun PlayerScreen(app: App, onBack: () -> Unit) {
     val state by app.player.state.collectAsStateWithLifecycle()
-    val currentTrack = app.repository.trackById(state.currentId)
+    val tracks by app.repository.tracks.collectAsStateWithLifecycle()
+    val currentTrack = remember(state.currentId, tracks) {
+        tracks.firstOrNull { it.id == state.currentId }
+    }
     val queue = remember(state.queueIds) { app.repository.tracksByIds(state.queueIds) }
 
     var dragging by remember { mutableStateOf(false) }
@@ -98,6 +101,20 @@ fun PlayerScreen(app: App, onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
+            if (currentTrack != null) {
+                val stat = buildString {
+                    append("已播放 ${currentTrack.playCount} 次")
+                    if (currentTrack.playDurationMs > 0L) {
+                        append(" · 累计收听 ${formatDuration(currentTrack.playDurationMs)}")
+                    }
+                }
+                Text(
+                    stat,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
             Slider(

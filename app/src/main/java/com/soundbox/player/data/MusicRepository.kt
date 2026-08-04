@@ -1,20 +1,20 @@
 package com.soundbox.player.data
 
-import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.database.Cursor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import android.os.Build
 import android.provider.DocumentsContract
-import android.provider.MediaStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -23,17 +23,29 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * 曲库仓库。三个来源合并：
- *  1. 本机 MediaStore（系统媒体库里已有的音乐）
- *  2. 用户导入的文件夹（SAF 目录树，递归扫描）
- *  3. 用户导入的单个文件
+ * 曲库仓库。仅收录用户手动导入的内容（不再自动扫描整台手机）：
+ *  1. 用户导入的文件夹（SAF 目录树，递归扫描）
+ *  2. 用户导入的单个文件
  *
  * 导入来源的元数据会缓存到 JSON，避免每次启动都重新解析标签。
+ * 播放次数 / 累计时长由 StatsStore 维护，并通过 tracks 流合并到每首曲目上。
  */
-class MusicRepository(private val context: Context, private val prefs: Prefs) {
+class MusicRepository(
+    private val context: Context,
+    private val prefs: Prefs,
+    private val statsStore: StatsStore,
+) {
 
-    private val _tracks = MutableStateFlow<List<Track>>(emptyList())
-    val tracks: StateFlow<List<Track>> = _tracks.asStateFlow()
+    /** 未附加统计的基础曲目列表（统计由 tracks 流合并后对外）。 */
+    private val _base = MutableStateFlow<List<Track>>(emptyList())
+
+    /** 对外曲库：基础列表 + 每首的播放次数 / 累计时长。 */
+    val tracks: StateFlow<List<Track>> = combine(_base, statsStore.state) { base, stats ->
+        base.map { t ->
+            val s = stats[t.id]
+            if (s != null) t.copy(playCount = s.count, playDurationMs = s.durationMs) else t
+        }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
@@ -67,9 +79,6 @@ class MusicRepository(private val context: Context, private val prefs: Prefs) {
             val cache = loadCache().toMutableMap()
             val merged = LinkedHashMap<String, Track>()
 
-            _status.value = "正在读取本机音乐…"
-            queryDeviceTracks().forEach { merged[it.id] = it }
-
             val trees = prefs.importedTrees.toList()
             trees.forEachIndexed { i, tree ->
                 _status.value = "正在扫描导入目录 ${i + 1}/${trees.size}…"
@@ -95,94 +104,12 @@ class MusicRepository(private val context: Context, private val prefs: Prefs) {
             }
 
             index = list.associateBy { it.id }
-            _tracks.value = list.toList()
+            _base.value = list.toList()
             saveCache(list.filter { it.source == TrackSource.IMPORTED })
             _status.value = null
         } finally {
             _scanning.value = false
         }
-    }
-
-    // ------------------------------------------------------- 来源 1：MediaStore
-
-    private fun queryDeviceTracks(): List<Track> {
-        val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-        } else {
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        }
-
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.SIZE,
-            MediaStore.Audio.Media.DISPLAY_NAME,
-            MediaStore.Audio.Media.DATE_ADDED,
-            MediaStore.Audio.Media.DATA,
-        )
-
-        val selection = if (prefs.includeAllAudio) {
-            null
-        } else {
-            "${MediaStore.Audio.Media.IS_MUSIC} != 0 OR ${MediaStore.Audio.Media.IS_PODCAST} != 0"
-        }
-
-        val cursor: Cursor? = runCatching {
-            context.contentResolver.query(collection, projection, selection, null, null)
-        }.getOrNull()
-
-        val out = ArrayList<Track>()
-        cursor?.use { c ->
-            val iId = c.getColumnIndex(MediaStore.Audio.Media._ID)
-            val iTitle = c.getColumnIndex(MediaStore.Audio.Media.TITLE)
-            val iArtist = c.getColumnIndex(MediaStore.Audio.Media.ARTIST)
-            val iAlbum = c.getColumnIndex(MediaStore.Audio.Media.ALBUM)
-            val iAlbumId = c.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
-            val iDuration = c.getColumnIndex(MediaStore.Audio.Media.DURATION)
-            val iSize = c.getColumnIndex(MediaStore.Audio.Media.SIZE)
-            val iName = c.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
-            val iAdded = c.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)
-            val iData = c.getColumnIndex(MediaStore.Audio.Media.DATA)
-
-            while (c.moveToNext()) {
-                val id = c.longOr(iId, -1L)
-                if (id < 0) continue
-                val displayName = c.stringOr(iName).orEmpty()
-                val ext = AudioFormats.extensionOf(displayName)
-                if (ext.isNotEmpty() && ext !in AudioFormats.SUPPORTED) continue
-
-                val uri = ContentUris.withAppendedId(collection, id)
-                val path = c.stringOr(iData)
-                val folder = path?.let { File(it).parentFile?.name }
-                    ?.takeIf { it.isNotBlank() } ?: "本机音乐"
-                val albumId = c.longOr(iAlbumId, -1L)
-                val rawArtist = c.stringOr(iArtist).orEmpty()
-                val rawAlbum = c.stringOr(iAlbum).orEmpty()
-
-                out += Track(
-                    id = uri.toString(),
-                    uri = uri,
-                    title = c.stringOr(iTitle)?.takeIf { it.isNotBlank() }
-                        ?: displayName.substringBeforeLast('.').ifBlank { "未知曲目" },
-                    artist = if (rawArtist == "<unknown>") "" else rawArtist,
-                    album = if (rawAlbum == "<unknown>") "" else rawAlbum,
-                    durationMs = c.longOr(iDuration, 0L),
-                    sizeBytes = c.longOr(iSize, 0L),
-                    format = AudioFormats.label(ext),
-                    folderName = folder,
-                    artworkUri = if (albumId >= 0) {
-                        ContentUris.withAppendedId(ALBUM_ART_BASE, albumId)
-                    } else null,
-                    addedAt = c.longOr(iAdded, 0L) * 1000L,
-                    source = TrackSource.DEVICE,
-                )
-            }
-        }
-        return out
     }
 
     // ------------------------------------------------ 来源 2：SAF 目录树递归扫描
@@ -446,7 +373,6 @@ class MusicRepository(private val context: Context, private val prefs: Prefs) {
     }
 
     private companion object {
-        val ALBUM_ART_BASE: Uri = Uri.parse("content://media/external/audio/albumart")
         const val MAX_DIRS = 20_000
         const val MAX_ART_BYTES = 4 * 1024 * 1024
     }

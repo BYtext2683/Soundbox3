@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 读取本机音频（Android 13+） -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <!-- 读取本机音频（Android 12 及以下） -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <!-- 通知栏播放控制 -->
+    <!-- 通知栏播放控制（Android 13+ 需授权；媒体播放本身通过 SAF 授权，无需存储权限） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />

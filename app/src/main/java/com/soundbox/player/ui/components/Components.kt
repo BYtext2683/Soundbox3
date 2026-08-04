@@ -108,6 +108,7 @@ fun TrackRow(
     onAddToPlaylist: (() -> Unit)? = null,
     extraMenu: List<MenuItemData> = emptyList(),
     highlight: Boolean = false,
+    playCount: Int = 0,
 ) {
     var menu by remember { mutableStateOf(false) }
     Row(
@@ -145,6 +146,14 @@ fun TrackRow(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.outline,
         )
+        if (playCount > 0) {
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = "▶ $playCount",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.outline,
+            )
+        }
         Spacer(Modifier.width(4.dp))
         Box {
             IconButton(onClick = { menu = true }) {

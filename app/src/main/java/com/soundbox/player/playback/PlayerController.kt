@@ -9,6 +9,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.soundbox.player.data.PlayOrder
 import com.soundbox.player.data.Prefs
+import com.soundbox.player.data.StatsStore
 import com.soundbox.player.data.Track
 import com.soundbox.player.data.toMediaItem
 import kotlinx.coroutines.CoroutineScope
@@ -46,12 +47,18 @@ data class PlayerUiState(
 class PlayerController(
     private val context: Context,
     private val prefs: Prefs,
+    private val stats: StatsStore,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var controller: MediaController? = null
     private var ticker: Job? = null
+
+    /** 当前正在统计时长的曲目 id，用于切歌时结算上一首。 */
+    private var lastId: String? = null
+    /** 已播放但未落盘的累计毫秒数，每满 5 秒结算一次。 */
+    private var tickAccumMs = 0L
 
     private val _state = MutableStateFlow(PlayerUiState(order = PlayOrder.of(prefs.playOrderOrdinal)))
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
@@ -75,6 +82,10 @@ class PlayerController(
     }
 
     fun release() {
+        if (lastId != null && tickAccumMs > 0) {
+            stats.addDuration(lastId!!, tickAccumMs)
+            tickAccumMs = 0
+        }
         ticker?.cancel()
         ticker = null
         controller?.removeListener(listener)
@@ -185,6 +196,17 @@ class PlayerController(
                 add(player.getMediaItemAt(i).mediaId)
             }
         }
+
+        // 切歌时：先结算上一首的收听时长，再为当前曲记录一次播放次数
+        val curId = player.currentMediaItem?.mediaId
+        if (curId != null && curId != lastId) {
+            if (lastId != null && tickAccumMs > 0) {
+                stats.addDuration(lastId!!, tickAccumMs)
+                tickAccumMs = 0
+            }
+            stats.recordPlay(curId)
+            lastId = curId
+        }
         _state.update {
             it.copy(
                 ready = true,
@@ -214,6 +236,12 @@ class PlayerController(
             while (isActive) {
                 val c = controller
                 if (c != null && c.isPlaying) {
+                    tickAccumMs += 500
+                    if (tickAccumMs >= 5000) {
+                        val id = lastId
+                        if (id != null) stats.addDuration(id, tickAccumMs)
+                        tickAccumMs = 0
+                    }
                     _state.update {
                         it.copy(
                             positionMs = c.currentPosition.coerceAtLeast(0L),

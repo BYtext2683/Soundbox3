@@ -15,11 +15,6 @@ class Prefs(context: Context) {
         get() = sp.getInt(KEY_SORT, SortMode.TITLE.ordinal)
         set(value) = sp.edit { putInt(KEY_SORT, value) }
 
-    /** 是否把铃声、通知音、录音等非音乐音频也收进曲库 */
-    var includeAllAudio: Boolean
-        get() = sp.getBoolean(KEY_ALL_AUDIO, false)
-        set(value) = sp.edit { putBoolean(KEY_ALL_AUDIO, value) }
-
     /** 过滤掉时长过短的片段（秒），0 表示不过滤 */
     var minDurationSec: Int
         get() = sp.getInt(KEY_MIN_DURATION, 0)
@@ -38,7 +33,6 @@ class Prefs(context: Context) {
     private companion object {
         const val KEY_ORDER = "play_order"
         const val KEY_SORT = "sort_mode"
-        const val KEY_ALL_AUDIO = "include_all_audio"
         const val KEY_MIN_DURATION = "min_duration_sec"
         const val KEY_TREES = "imported_trees"
         const val KEY_FILES = "imported_files"

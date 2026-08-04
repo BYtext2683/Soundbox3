@@ -113,6 +113,7 @@ fun HomeScreen(app: App) {
                         TrackRow(
                             track = track,
                             highlight = track.id == playerState.currentId,
+                            playCount = track.playCount,
                             onPlay = { app.player.playTrack(track, shown) },
                             onPlayNext = { app.player.playNext(listOf(track)) },
                             onAddToQueue = { app.player.addToQueue(listOf(track)) },

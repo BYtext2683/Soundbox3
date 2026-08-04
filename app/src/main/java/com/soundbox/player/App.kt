@@ -4,6 +4,7 @@ import android.app.Application
 import com.soundbox.player.data.MusicRepository
 import com.soundbox.player.data.PlaylistStore
 import com.soundbox.player.data.Prefs
+import com.soundbox.player.data.StatsStore
 import com.soundbox.player.playback.PlayerController
 
 /** 手写的极简依赖容器，不引入 DI 框架，减少云端编译的不确定性。 */
@@ -21,8 +22,9 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
-        repository = MusicRepository(this, prefs)
+        val stats = StatsStore(this)
+        repository = MusicRepository(this, prefs, stats)
         playlists = PlaylistStore(this)
-        player = PlayerController(this, prefs)
+        player = PlayerController(this, prefs, stats)
     }
 }

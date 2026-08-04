@@ -19,7 +19,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -43,7 +42,6 @@ const val SIGNING_FINGERPRINT =
 @Composable
 fun SettingsScreen(app: App, onBack: () -> Unit) {
     val playerState by app.player.state.collectAsStateWithLifecycle()
-    var includeAll by remember { mutableStateOf(app.prefs.includeAllAudio) }
     var minDur by remember { mutableStateOf(app.prefs.minDurationSec) }
     var order by remember { mutableStateOf(playerState.order) }
 
@@ -54,36 +52,11 @@ fun SettingsScreen(app: App, onBack: () -> Unit) {
         )
 
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // 包含非音乐音频
-            Card(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("包含铃声 / 录音 / 通知音", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            "默认只收「音乐」。开启后会把本机所有音频文件都扫进来。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = includeAll,
-                        onCheckedChange = {
-                            includeAll = it
-                            app.prefs.includeAllAudio = it
-                            app.repository.refresh()
-                        },
-                    )
-                }
-            }
-
             // 最短时长过滤
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
                     Text("过滤过短的片段", style = MaterialTheme.typography.bodyLarge)
-                    Text("低于该时长的音频不进入曲库（秒）。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("导入的音频低于该时长不进入曲库（秒）。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(0, 10, 30, 60).forEach { sec ->
                             val selected = minDur == sec

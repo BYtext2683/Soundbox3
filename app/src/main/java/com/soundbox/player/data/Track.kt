@@ -24,6 +24,10 @@ data class Track(
     val artworkUri: Uri?,
     val addedAt: Long,
     val source: TrackSource,
+    /** 累计播放次数（由 StatsStore 合并，默认值 0）。 */
+    val playCount: Int = 0,
+    /** 累计播放时长（毫秒，由 StatsStore 合并，默认值 0）。 */
+    val playDurationMs: Long = 0L,
 ) {
     val displayArtist: String get() = artist.ifBlank { UNKNOWN_ARTIST }
     val displayAlbum: String get() = album.ifBlank { UNKNOWN_ALBUM }
@@ -75,7 +79,9 @@ enum class SortMode(val label: String) {
     ALBUM("按专辑"),
     ADDED_DESC("最近添加"),
     DURATION("按时长"),
-    SIZE("按文件大小");
+    SIZE("按文件大小"),
+    PLAY_COUNT("按播放次数"),
+    PLAY_TIME("按收听时长");
 
     companion object {
         fun of(ordinal: Int): SortMode = entries.getOrElse(ordinal) { TITLE }
@@ -95,6 +101,8 @@ fun List<Track>.sortedBy(mode: SortMode): List<Track> = when (mode) {
     SortMode.ADDED_DESC -> sortedByDescending { it.addedAt }
     SortMode.DURATION -> sortedByDescending { it.durationMs }
     SortMode.SIZE -> sortedByDescending { it.sizeBytes }
+    SortMode.PLAY_COUNT -> sortedByDescending { it.playCount }
+    SortMode.PLAY_TIME -> sortedByDescending { it.playDurationMs }
 }
 
 /** 本机原生解码器支持的音频格式。凡是列在这里的才会被扫描进曲库。 */
