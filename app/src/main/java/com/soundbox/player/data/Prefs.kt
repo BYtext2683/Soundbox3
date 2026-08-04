@@ -83,7 +83,7 @@ class Prefs(context: Context) {
         get() = sp.getFloat(KEY_WALLPAPER_OPACITY, DEFAULT_WALLPAPER_OPACITY)
         set(value) = sp.edit { putFloat(KEY_WALLPAPER_OPACITY, value) }
 
-    private companion object {
+    companion object {
         const val KEY_ORDER = "play_order"
         const val KEY_SORT = "sort_mode"
         const val KEY_MIN_DURATION = "min_duration_sec"
