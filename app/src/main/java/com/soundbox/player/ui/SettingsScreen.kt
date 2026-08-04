@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
@@ -40,7 +41,7 @@ const val SIGNING_FINGERPRINT =
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(app: App, onBack: () -> Unit) {
+fun SettingsScreen(app: App, onBack: () -> Unit, onOpenWallpaper: () -> Unit = {}) {
     val playerState by app.player.state.collectAsStateWithLifecycle()
     var minDur by remember { mutableStateOf(app.prefs.minDurationSec) }
     var order by remember { mutableStateOf(playerState.order) }
@@ -106,6 +107,19 @@ fun SettingsScreen(app: App, onBack: () -> Unit) {
                             }
                         }
                     }
+                }
+            }
+
+            // 背景壁纸
+            Card(Modifier.fillMaxWidth().clickable(onClick = onOpenWallpaper)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    Text("背景壁纸", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "从相册选择图片或动态 GIF 作为 App 背景，可缩放、拖动裁剪显示区域。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
 

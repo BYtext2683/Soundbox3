@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -194,6 +196,57 @@ fun TrackRow(
                 }
             }
         }
+    }
+}
+
+/**
+ * 重命名 / 删除歌曲的对话框组合。由调用方持有 renameTarget / deleteTarget 状态并传入。
+ */
+@Composable
+fun TrackManageDialogs(
+    renameTarget: Track?,
+    deleteTarget: Track?,
+    onRename: (Track, String) -> Unit,
+    onDelete: (Track) -> Unit,
+    onDismissRename: () -> Unit,
+    onDismissDelete: () -> Unit,
+) {
+    var name by remember(renameTarget?.id) { mutableStateOf(renameTarget?.title ?: "") }
+    if (renameTarget != null) {
+        AlertDialog(
+            onDismissRequest = onDismissRename,
+            title = { Text("重命名歌曲") },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("歌曲名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onRename(renameTarget, name) }) { Text("保存") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissRename) { Text("取消") }
+            },
+        )
+    }
+    if (deleteTarget != null) {
+        AlertDialog(
+            onDismissRequest = onDismissDelete,
+            title = { Text("从曲库移除") },
+            text = {
+                Text("确定将《${deleteTarget.title}》从曲库移除吗？\n原始音频文件不会被删除，只是不再显示在列表里。")
+            },
+            confirmButton = {
+                TextButton(onClick = { onDelete(deleteTarget) }) { Text("移除") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissDelete) { Text("取消") }
+            },
+        )
     }
 }
 

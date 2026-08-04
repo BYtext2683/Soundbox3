@@ -41,7 +41,9 @@ import com.soundbox.player.data.groupInto
 import com.soundbox.player.data.inCategory
 import com.soundbox.player.ui.components.ArtworkImage
 import com.soundbox.player.ui.components.EmptyState
+import com.soundbox.player.ui.components.MenuItemData
 import com.soundbox.player.ui.components.PlaylistPicker
+import com.soundbox.player.ui.components.TrackManageDialogs
 import com.soundbox.player.ui.components.TrackRow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +55,9 @@ fun LibraryScreen(app: App) {
     var tabIndex by remember { mutableStateOf(0) }
     var drillKey by remember { mutableStateOf<String?>(null) }
     val currentType = CategoryType.entries[tabIndex]
+
+    var renameTarget by remember { mutableStateOf<Track?>(null) }
+    var deleteTarget by remember { mutableStateOf<Track?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -107,12 +112,32 @@ fun LibraryScreen(app: App) {
                                 onPlayNext = { app.player.playNext(listOf(track)) },
                                 onAddToQueue = { app.player.addToQueue(listOf(track)) },
                                 onAddToPlaylist = { onAdd(track) },
+                                extraMenu = listOf(
+                                    MenuItemData("重命名") { renameTarget = track },
+                                    MenuItemData("删除") { deleteTarget = track },
+                                ),
                             )
                         }
                     }
                 }
             }
         }
+
+        TrackManageDialogs(
+            renameTarget = renameTarget,
+            deleteTarget = deleteTarget,
+            onRename = { t, newName ->
+                app.repository.renameTrack(t.id, newName)
+                renameTarget = null
+            },
+            onDelete = { t ->
+                if (t.id == playerState.currentId) app.player.next()
+                app.repository.hideTrack(t.id)
+                deleteTarget = null
+            },
+            onDismissRename = { renameTarget = null },
+            onDismissDelete = { deleteTarget = null },
+        )
     }
 }
 

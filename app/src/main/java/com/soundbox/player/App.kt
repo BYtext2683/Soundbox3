@@ -6,6 +6,15 @@ import com.soundbox.player.data.PlaylistStore
 import com.soundbox.player.data.Prefs
 import com.soundbox.player.data.StatsStore
 import com.soundbox.player.playback.PlayerController
+import kotlinx.coroutines.flow.MutableStateFlow
+
+/** 背景壁纸配置。uri 为空字符串表示未设置壁纸。 */
+data class WallpaperConfig(
+    val uri: String = "",
+    val scale: Float = 1f,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+)
 
 /** 手写的极简依赖容器，不引入 DI 框架，减少云端编译的不确定性。 */
 class App : Application() {
@@ -19,6 +28,10 @@ class App : Application() {
     lateinit var player: PlayerController
         private set
 
+    /** 当前背景壁纸配置（uri/缩放/偏移），变更时驱动壁纸重绘。 */
+    lateinit var wallpaperConfig: MutableStateFlow<WallpaperConfig>
+        private set
+
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
@@ -26,5 +39,26 @@ class App : Application() {
         repository = MusicRepository(this, prefs, stats)
         playlists = PlaylistStore(this)
         player = PlayerController(this, prefs, stats)
+        wallpaperConfig = MutableStateFlow(
+            WallpaperConfig(
+                uri = prefs.wallpaperUri,
+                scale = prefs.wallpaperScale,
+                offsetX = prefs.wallpaperOffsetX,
+                offsetY = prefs.wallpaperOffsetY,
+            )
+        )
+    }
+
+    fun applyWallpaper(uri: String, scale: Float, offsetX: Float, offsetY: Float) {
+        prefs.wallpaperUri = uri
+        prefs.wallpaperScale = scale
+        prefs.wallpaperOffsetX = offsetX
+        prefs.wallpaperOffsetY = offsetY
+        wallpaperConfig.value = WallpaperConfig(uri, scale, offsetX, offsetY)
+    }
+
+    fun clearWallpaper() {
+        prefs.wallpaperUri = ""
+        wallpaperConfig.value = WallpaperConfig()
     }
 }

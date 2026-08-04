@@ -39,7 +39,9 @@ import com.soundbox.player.data.Track
 import com.soundbox.player.data.search
 import com.soundbox.player.data.sortedBy
 import com.soundbox.player.ui.components.EmptyState
+import com.soundbox.player.ui.components.MenuItemData
 import com.soundbox.player.ui.components.PlaylistPicker
+import com.soundbox.player.ui.components.TrackManageDialogs
 import com.soundbox.player.ui.components.TrackRow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +55,9 @@ fun HomeScreen(app: App) {
     var query by remember { mutableStateOf("") }
     var sortMenu by remember { mutableStateOf(false) }
     var sortMode by remember { mutableStateOf(SortMode.of(app.prefs.sortModeOrdinal)) }
+
+    var renameTarget by remember { mutableStateOf<Track?>(null) }
+    var deleteTarget by remember { mutableStateOf<Track?>(null) }
 
     val base = if (query.isBlank()) tracks else tracks.search(query)
     val shown = remember(base, sortMode) { base.sortedBy(sortMode) }
@@ -118,10 +123,30 @@ fun HomeScreen(app: App) {
                             onPlayNext = { app.player.playNext(listOf(track)) },
                             onAddToQueue = { app.player.addToQueue(listOf(track)) },
                             onAddToPlaylist = { onAdd(track) },
+                            extraMenu = listOf(
+                                MenuItemData("重命名") { renameTarget = track },
+                                MenuItemData("删除") { deleteTarget = track },
+                            ),
                         )
                     }
                 }
             }
         }
+
+        TrackManageDialogs(
+            renameTarget = renameTarget,
+            deleteTarget = deleteTarget,
+            onRename = { t, newName ->
+                app.repository.renameTrack(t.id, newName)
+                renameTarget = null
+            },
+            onDelete = { t ->
+                if (t.id == playerState.currentId) app.player.next()
+                app.repository.hideTrack(t.id)
+                deleteTarget = null
+            },
+            onDismissRename = { renameTarget = null },
+            onDismissDelete = { deleteTarget = null },
+        )
     }
 }

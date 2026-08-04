@@ -65,6 +65,24 @@ class MusicRepository(
 
     fun tracksByIds(ids: List<String>): List<Track> = ids.mapNotNull { index[it] }
 
+    // ----------------------------------------------------- 隐藏与重命名（即时生效）
+
+    /** 从曲库隐藏一首歌（不删除手机里的原始文件）。 */
+    fun hideTrack(id: String) {
+        prefs.hiddenTrackIds = prefs.hiddenTrackIds + id
+        val cur = _base.value
+        _base.value = cur.filter { it.id != id }
+        index = index - id
+    }
+
+    /** 给歌曲改一个仅供显示的标题（不修改原文件）。 */
+    fun renameTrack(id: String, newTitle: String) {
+        val title = newTitle.trim()
+        prefs.setTitleOverride(id, title)
+        val cur = _base.value
+        _base.value = cur.map { t -> if (t.id == id) t.copy(title = title.ifBlank { t.title }) else t }
+    }
+
     // ------------------------------------------------------------------ 扫描
 
     fun refresh() {
@@ -99,7 +117,12 @@ class MusicRepository(
             }
 
             val minMs = prefs.minDurationSec * 1000L
-            val list = merged.values.filter {
+            val hidden = prefs.hiddenTrackIds
+            val overrides = prefs.titleOverrides()
+            val list = merged.values.mapNotNull { t ->
+                if (t.id in hidden) null
+                else overrides[t.id]?.let { t.copy(title = it) } ?: t
+            }.filter {
                 minMs <= 0L || it.durationMs <= 0L || it.durationMs >= minMs
             }
 

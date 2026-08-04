@@ -9,12 +9,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -39,6 +41,8 @@ import com.soundbox.player.ui.MeScreen
 import com.soundbox.player.ui.PlayerScreen
 import com.soundbox.player.ui.PlaylistScreen
 import com.soundbox.player.ui.SettingsScreen
+import com.soundbox.player.ui.WallpaperBackground
+import com.soundbox.player.ui.WallpaperScreen
 import com.soundbox.player.ui.theme.SoundBoxTheme
 
 class MainActivity : androidx.activity.ComponentActivity() {
@@ -78,28 +82,40 @@ fun AppRoot(app: App) {
         }
     }
 
-    Scaffold(
-        bottomBar = { if (showBar) AppBottomBar(nav) },
-    ) { inner ->
-        NavHost(
-            nav,
-            startDestination = "home",
-            modifier = Modifier.fillMaxSize().padding(inner),
-        ) {
-            composable("home") { HomeScreen(app) }
-            composable("library") { LibraryScreen(app) }
-            composable("playlists") { PlaylistScreen(app) }
-            composable("me") {
-                MeScreen(
-                    app,
-                    onImport = { nav.navigate("import") },
-                    onSettings = { nav.navigate("settings") },
-                    onOpenPlayer = { nav.navigate("player") },
-                )
+    Box(Modifier.fillMaxSize()) {
+        WallpaperBackground(app)
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
+            bottomBar = { if (showBar) AppBottomBar(nav) },
+        ) { inner ->
+            NavHost(
+                nav,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize().padding(inner),
+            ) {
+                composable("home") { HomeScreen(app) }
+                composable("library") { LibraryScreen(app) }
+                composable("playlists") { PlaylistScreen(app) }
+                composable("me") {
+                    MeScreen(
+                        app,
+                        onImport = { nav.navigate("import") },
+                        onSettings = { nav.navigate("settings") },
+                        onOpenPlayer = { nav.navigate("player") },
+                    )
+                }
+                composable("import") { ImportScreen(app, onBack = { nav.popBackStack() }) }
+                composable("settings") {
+                    SettingsScreen(
+                        app,
+                        onBack = { nav.popBackStack() },
+                        onOpenWallpaper = { nav.navigate("wallpaper") },
+                    )
+                }
+                composable("wallpaper") { WallpaperScreen(app, onBack = { nav.popBackStack() }) }
+                composable("player") { PlayerScreen(app, onBack = { nav.popBackStack() }) }
             }
-            composable("import") { ImportScreen(app, onBack = { nav.popBackStack() }) }
-            composable("settings") { SettingsScreen(app, onBack = { nav.popBackStack() }) }
-            composable("player") { PlayerScreen(app, onBack = { nav.popBackStack() }) }
         }
     }
 }

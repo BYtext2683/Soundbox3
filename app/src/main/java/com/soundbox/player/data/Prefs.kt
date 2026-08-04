@@ -2,6 +2,7 @@ package com.soundbox.player.data
 
 import android.content.Context
 import androidx.core.content.edit
+import org.json.JSONObject
 
 class Prefs(context: Context) {
 
@@ -30,11 +31,64 @@ class Prefs(context: Context) {
         get() = sp.getStringSet(KEY_FILES, emptySet()).orEmpty()
         set(value) = sp.edit { putStringSet(KEY_FILES, value) }
 
+    // ----- 曲库整理：隐藏与重命名 -----
+
+    /** 被用户从曲库隐藏（移除）的曲目 id（URI 字符串）。不删除原始文件。 */
+    var hiddenTrackIds: Set<String>
+        get() = sp.getStringSet(KEY_HIDDEN, emptySet()).orEmpty()
+        set(value) = sp.edit { putStringSet(KEY_HIDDEN, value) }
+
+    /** 用户手动设置的曲目标题覆盖，JSON 对象：id -> 标题。 */
+    var titleOverridesJson: String
+        get() = sp.getString(KEY_TITLE_OVERRIDES, "") ?: ""
+        set(value) = sp.edit { putString(KEY_TITLE_OVERRIDES, value) }
+
+    fun titleOverrides(): Map<String, String> {
+        val raw = titleOverridesJson
+        if (raw.isBlank()) return emptyMap()
+        return runCatching {
+            val o = JSONObject(raw)
+            buildMap { o.keys().asSequence().forEach { put(it, o.optString(it)) } }
+        }.getOrDefault(emptyMap())
+    }
+
+    fun setTitleOverride(id: String, title: String) {
+        val map = titleOverrides().toMutableMap()
+        if (title.isBlank()) map.remove(id) else map[id] = title
+        val o = JSONObject()
+        map.forEach { (k, v) -> o.put(k, v) }
+        titleOverridesJson = o.toString()
+    }
+
+    // ----- 背景壁纸 -----
+
+    var wallpaperUri: String
+        get() = sp.getString(KEY_WALLPAPER_URI, "") ?: ""
+        set(value) = sp.edit { putString(KEY_WALLPAPER_URI, value) }
+
+    var wallpaperScale: Float
+        get() = sp.getFloat(KEY_WALLPAPER_SCALE, 1f)
+        set(value) = sp.edit { putFloat(KEY_WALLPAPER_SCALE, value) }
+
+    var wallpaperOffsetX: Float
+        get() = sp.getFloat(KEY_WALLPAPER_OFFSET_X, 0f)
+        set(value) = sp.edit { putFloat(KEY_WALLPAPER_OFFSET_X, value) }
+
+    var wallpaperOffsetY: Float
+        get() = sp.getFloat(KEY_WALLPAPER_OFFSET_Y, 0f)
+        set(value) = sp.edit { putFloat(KEY_WALLPAPER_OFFSET_Y, value) }
+
     private companion object {
         const val KEY_ORDER = "play_order"
         const val KEY_SORT = "sort_mode"
         const val KEY_MIN_DURATION = "min_duration_sec"
         const val KEY_TREES = "imported_trees"
         const val KEY_FILES = "imported_files"
+        const val KEY_HIDDEN = "hidden_track_ids"
+        const val KEY_TITLE_OVERRIDES = "title_overrides"
+        const val KEY_WALLPAPER_URI = "wallpaper_uri"
+        const val KEY_WALLPAPER_SCALE = "wallpaper_scale"
+        const val KEY_WALLPAPER_OFFSET_X = "wallpaper_offset_x"
+        const val KEY_WALLPAPER_OFFSET_Y = "wallpaper_offset_y"
     }
 }
