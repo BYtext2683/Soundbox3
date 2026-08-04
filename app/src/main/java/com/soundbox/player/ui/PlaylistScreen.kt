@@ -34,7 +34,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +72,7 @@ fun PlaylistScreen(app: App) {
                         Icon(Icons.Filled.Add, contentDescription = "新建歌单")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
             if (playlists.isEmpty()) {
                 EmptyState("还没有歌单，点右上角 + 新建", Modifier.weight(1f))
@@ -129,6 +132,7 @@ private fun PlaylistDetail(
         TopAppBar(
             title = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null) } },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             actions = {
                 IconButton(onClick = { app.player.playAll(tracks, 0) }) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = "播放全部")

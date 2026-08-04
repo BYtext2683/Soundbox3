@@ -22,9 +22,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,6 +93,7 @@ fun HomeScreen(app: App) {
                     }
                 }
             },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         )
 
         OutlinedTextField(
@@ -98,6 +102,10 @@ fun HomeScreen(app: App) {
             placeholder = { Text("搜索歌曲 / 歌手 / 专辑") },
             leadingIcon = { Icon(Icons.Filled.Search, null) },
             singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),

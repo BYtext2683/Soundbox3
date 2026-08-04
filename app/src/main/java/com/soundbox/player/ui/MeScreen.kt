@@ -19,7 +19,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,7 +46,10 @@ fun MeScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TopAppBar(title = { Text("我的") })
+        TopAppBar(
+            title = { Text("我的") },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+        )
 
         Column(
             Modifier.fillMaxWidth().padding(16.dp),
