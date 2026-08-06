@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Movie
 import android.net.Uri
+import android.view.TextureView
+import androidx.compose.runtime.DisposableEffect
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.LinearEasing
