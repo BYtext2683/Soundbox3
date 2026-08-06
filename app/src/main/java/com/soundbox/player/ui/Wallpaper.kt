@@ -52,7 +52,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.key
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.soundbox.player.App
 import com.soundbox.player.data.Prefs
 
@@ -115,23 +123,49 @@ private fun loadWallpaperMovie(context: Context, uri: Uri): Movie? = runCatching
     }
 }.getOrNull()?.takeIf { it.width() > 0 && it.height() > 0 }
 
-/** 常驻在最底层：渲染用户设置的背景壁纸（静态图或动态 GIF），并应用缩放/偏移。 */
+/** 壁纸类型：静态图 / 动态 GIF / 视频（mp4 等）。 */
+private enum class WallpaperType { IMAGE, GIF, VIDEO }
+
+/** 根据内容 MIME（必要时嗅探解码）判断壁纸属于哪种类型。 */
+private fun detectWallpaperType(context: Context, uri: Uri): WallpaperType {
+    val mime = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+    if (mime != null) return when {
+        mime.startsWith("video/") -> WallpaperType.VIDEO
+        mime == "image/gif" -> WallpaperType.GIF
+        mime.startsWith("image/") -> WallpaperType.IMAGE
+        else -> WallpaperType.IMAGE
+    }
+    // MIME 未知时兜底：先尝试静态图，再 GIF，最后当作视频。
+    if (loadWallpaperBitmap(context, uri) != null) return WallpaperType.IMAGE
+    if (loadWallpaperMovie(context, uri) != null) return WallpaperType.GIF
+    return WallpaperType.VIDEO
+}
+
+/** 常驻在最底层：渲染用户设置的背景壁纸（静态图 / 动态 GIF / 视频），并应用缩放/偏移。 */
 @Composable
 fun WallpaperBackground(app: App) {
     val config by app.wallpaperConfig.collectAsStateWithLifecycle()
     if (config.uri.isBlank()) return
     val context = LocalContext.current
     val uriObj = remember(config.uri) { Uri.parse(config.uri) }
-    val bitmap = remember(config.uri) { loadWallpaperBitmap(context, uriObj) }
-    val movie = remember(config.uri) { if (bitmap == null) loadWallpaperMovie(context, uriObj) else null }
-    val transform = remember(config) { Offset(config.offsetX, config.offsetY) to config.scale }
+    val type = remember(config.uri) { detectWallpaperType(context, uriObj) }
+    val offset = Offset(config.offsetX, config.offsetY)
 
     Box(Modifier.fillMaxSize()) {
-        when {
-            bitmap != null -> Canvas(Modifier.fillMaxSize()) {
-                drawWallpaper(bitmap, transform.second, transform.first)
+        when (type) {
+            WallpaperType.IMAGE -> {
+                val bitmap = remember(config.uri) { loadWallpaperBitmap(context, uriObj) }
+                if (bitmap != null) Canvas(Modifier.fillMaxSize()) {
+                    drawWallpaper(bitmap, config.scale, offset)
+                }
             }
-            movie != null -> AnimatedWallpaper(movie, transform.second, transform.first)
+            WallpaperType.GIF -> {
+                val movie = remember(config.uri) { loadWallpaperMovie(context, uriObj) }
+                if (movie != null) AnimatedWallpaper(movie, config.scale, offset)
+            }
+            WallpaperType.VIDEO -> {
+                VideoWallpaper(uriObj, Modifier.fillMaxSize(), config.scale, offset)
+            }
         }
     }
 }
@@ -155,7 +189,47 @@ private fun AnimatedWallpaper(movie: Movie, scale: Float, offset: Offset) {
     }
 }
 
-/** 设置页入口：从相册选择图片/GIF，缩放裁剪并调节不透明度后应用为壁纸。 */
+/**
+ * 视频壁纸：用 ExoPlayer 把 mp4 等视频渲染进 TextureView，静音循环播放。
+ * 缩放模式采用「cover」铺满，用户缩放/偏移通过 graphicsLayer 叠加，
+ * 与静态图、GIF 壁纸保持一致的视觉表现。
+ */
+@Composable
+private fun VideoWallpaper(
+    uri: Uri,
+    modifier: Modifier = Modifier.fillMaxSize(),
+    scale: Float,
+    offset: Offset,
+) {
+    val context = LocalContext.current
+    val player = remember(uri) {
+        ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ALL
+            volume = 0f
+            playWhenReady = true
+            setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
+            setMediaItem(MediaItem.fromUri(uri))
+            prepare()
+        }
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+    key(uri) {
+        AndroidView(
+            modifier = modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = offset.x
+                translationY = offset.y
+                transformOrigin = TransformOrigin.Center
+            },
+            factory = { ctx -> TextureView(ctx).also { player.setVideoTextureView(it) } },
+        )
+    }
+}
+
+/** 设置页入口：从相册选择图片/GIF/视频，缩放裁剪并调节不透明度后应用为壁纸。 */
 @Composable
 fun WallpaperScreen(app: App, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -189,11 +263,11 @@ fun WallpaperScreen(app: App, onBack: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "从相册选择一张图片作为 App 背景，支持静态图片与动态 GIF。",
+                    "从相册选择一张图片或视频作为 App 背景，支持静态图片、动态 GIF 与 .mp4 视频。",
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = { picker.launch(arrayOf("image/*")) }) { Text("选择图片") }
+                Button(onClick = { picker.launch(arrayOf("image/*", "video/mp4")) }) { Text("选择图片 / 视频") }
             }
         } else if (editing) {
             // 裁剪 / 缩放编辑模式
@@ -238,7 +312,7 @@ fun WallpaperScreen(app: App, onBack: () -> Unit) {
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Button(onClick = { picker.launch(arrayOf("image/*")) }) { Text("更换图片") }
+                    Button(onClick = { picker.launch(arrayOf("image/*", "video/mp4")) }) { Text("更换图片 / 视频") }
                     Button(onClick = { editing = true }) { Text("调整裁剪") }
                     TextButton(onClick = {
                         app.resetWallpaper()
@@ -260,8 +334,9 @@ private fun WallpaperCropper(
     onClear: () -> Unit,
 ) {
     val context = LocalContext.current
-    val bitmap = remember(uri) { loadWallpaperBitmap(context, uri) }
-    val movie = remember(uri) { if (bitmap == null) loadWallpaperMovie(context, uri) else null }
+    val type = remember(uri) { detectWallpaperType(context, uri) }
+    val bitmap = remember(uri) { if (type == WallpaperType.IMAGE) loadWallpaperBitmap(context, uri) else null }
+    val movie = remember(uri) { if (type == WallpaperType.GIF) loadWallpaperMovie(context, uri) else null }
     var scale by remember(uri) { mutableStateOf(initialScale) }
     var offset by remember(uri) { mutableStateOf(initialOffset) }
 
@@ -271,17 +346,27 @@ private fun WallpaperCropper(
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (bitmap != null) {
-            Canvas(Modifier.fillMaxSize().transformable(state)) {
-                drawWallpaper(bitmap, scale, offset)
+        when (type) {
+            WallpaperType.IMAGE -> if (bitmap != null) {
+                Canvas(Modifier.fillMaxSize().transformable(state)) {
+                    drawWallpaper(bitmap, scale, offset)
+                }
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("无法读取该图片", color = Color.White)
+                }
             }
-        } else if (movie != null) {
-            Canvas(Modifier.fillMaxSize().transformable(state)) {
-                drawWallpaperMovie(movie, scale, offset)
+            WallpaperType.GIF -> if (movie != null) {
+                Canvas(Modifier.fillMaxSize().transformable(state)) {
+                    drawWallpaperMovie(movie, scale, offset)
+                }
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("无法读取该图片", color = Color.White)
+                }
             }
-        } else {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("无法读取该图片", color = Color.White)
+            WallpaperType.VIDEO -> {
+                VideoWallpaper(uri, Modifier.fillMaxSize().transformable(state), scale, offset)
             }
         }
 
